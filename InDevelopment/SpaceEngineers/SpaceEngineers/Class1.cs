@@ -138,6 +138,7 @@ namespace IngameScript
             }
         }
 
+        #region Gyro-Experimental-Rotation
         //TODO: Clean this up and debug the value issues.
 
         /// <summary>
@@ -226,12 +227,9 @@ namespace IngameScript
             GyroSetOverrideFromGridReferenceFrame(localTargetRotation, specificGyro, allGyros);
         }
 
-        public List<T> GetBlocks<T>(bool all = true, string name = "", string group = "") where T : class, IMyTerminalBlock
-        {
-            List<T> blocks = new List<T>();
-            GridTerminalSystem.GetBlocksOfType(blocks);
-            return blocks;
-        }
+        
+
+        #endregion
 
         public void rotationTester()
         {
@@ -349,9 +347,104 @@ namespace IngameScript
             LcdPrintln(VectorToGPS(RotateVectorByQuaternion(RotateVectorByQuaternion(v180, RollPlus), RollPlus), "Roll360"));
         }
 
+        public void thrustTransit(bool decelerating = false)
+        {
+            LcdClear();
+            List<IMyThrust> thrusters = GetBlocks<IMyThrust>();
+
+            DebugPrintBlockProperties(thrusters[0]);
+
+            Vector3I thrustDirection;
+            thrustDirection = decelerating ? Vector3I.Forward : Vector3I.Backward;
+            foreach(IMyThrust thruster in thrusters)
+            {
+                if (thruster.GridThrustDirection.Equals(thrustDirection))
+                {
+                    thruster.SetValueFloat("Override", thruster.MaxThrust);
+                } else
+                {
+                    thruster.SetValueFloat("Override", 0);
+                }
+                //thruster = thruster.MaxThrust;
+            }
+            DebugPrintBlockProperties(GetBlock<IMyRemoteControl>("", true));
+            DebugPrintBlockProperties(getLcd());
+        }
+
+        //public void
+
+        public void beginThrusters(string argument)
+        {
+            if (argument == "start")
+            {
+                thrustTransit();
+                List<MyWaypointInfo> waypoints = new List<MyWaypointInfo>();
+                getRemoteControl("Remote Control").GetWaypointInfo(waypoints);
+                float distance = Vector3.Subtract(getRemoteControl("Remote Control").GetPosition(), waypoints[0].Coords).Normalize();
+                quickStore("NavPanel", distance.ToString(), false, true);
+            } else
+            {
+                List<MyWaypointInfo> waypoints = new List<MyWaypointInfo>();
+                getRemoteControl("Remote Control").GetWaypointInfo(waypoints);
+                if (isHalfwayTo(quickLoadFloat("NavPanel"), waypoints[0].Coords))
+                {
+                    thrustTransit(true);
+                }
+                if (argument == "stop")
+                {
+                    resetThrusters();
+                }
+            }
+        }
+
+        public void resetThrusters()
+        {
+            List<IMyThrust> thrusters = GetBlocks<IMyThrust>();
+
+            //DebugPrintBlockProperties(thrusters[0]);
+            foreach (IMyThrust thruster in thrusters)
+            {
+                thruster.SetValueFloat("Override", 0);
+                //thruster = thruster.MaxThrust;
+                ;
+            }
+        }
+
+        public void quickStore(string lcdName, string message, bool newLine = true, bool clearLcd = false)
+        {
+            if (clearLcd)
+            {
+                LcdClear(lcdName);
+            }
+            if (newLine)
+            {
+                message += '\n';
+            }
+            LcdPrint(message, lcdName);
+        }
+
+        public float quickLoadFloat(string lcdName)
+        {
+            return Convert.ToSingle(getLcd(lcdName).GetPublicText());
+        }
+
+        public bool isHalfwayTo(double originalDistance, Vector3 destination)
+        {
+            return (Vector3.Subtract(destination, getRemoteControl("", true).GetPosition()).Normalize()) < originalDistance / 2;
+        }
+
+        //TODO: Make reliable float/double comparisons!
+        public const float FLOAT_EPSILON = 1f;
+        public bool isAt(double originalDistance, Vector3 destination)
+        {
+            float currentDistance = destination.Normalize();
+            //return currentDistance < 0 + FLOAT_EPSILON && currentDistance > 0 - FLOAT_EPSILON;
+        }
 
         // MSG:CMD;Rec:1.2.3.4.UID;RCT'MV'RemoteName'GPS:x:y:z;
     }
+
+    
 }
 //TODO: Default get methods get first RC/Antenna if they can't find the default name...
         //to this comment.

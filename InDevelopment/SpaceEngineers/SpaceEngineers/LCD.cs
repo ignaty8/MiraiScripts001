@@ -82,6 +82,21 @@ namespace IngameScript
             }
         }
 
+        /// <summary>
+        /// Returns a list containing specified blocks of certain type. By default, all blocks of given type are returned.
+        /// </summary>
+        /// <typeparam name="T">Type of block to be returned.</typeparam>
+        /// <param name="all">If set to true, returns all blocks of given type.</param>
+        /// <param name="name">Returns only blocks that match selected neme.</param>
+        /// <param name="group">Returns only blocks from selected group.</param>
+        /// <returns></returns>
+        public List<T> GetBlocks<T>(bool all = true, string name = "", string group = "") where T : class, IMyTerminalBlock
+        {
+            List<T> blocks = new List<T>();
+            GridTerminalSystem.GetBlocksOfType(blocks);
+            return blocks;
+        }
+
         #region Angle-And-Rotation-Basic
 
         /// <summary>
@@ -925,6 +940,16 @@ namespace IngameScript
             foreach (ITerminalAction action in actions)
             {
                 LcdPrintln(action.Name.ToString());
+            }
+        }
+
+        public void DebugPrintBlockProperties(IMyTerminalBlock block)
+        {
+            List<ITerminalProperty> actions = new List<ITerminalProperty>();
+            block.GetProperties(actions);
+            foreach (ITerminalProperty action in actions)
+            {
+                LcdPrintln(action.Id + ':' + action.TypeName);
             }
         }
 
