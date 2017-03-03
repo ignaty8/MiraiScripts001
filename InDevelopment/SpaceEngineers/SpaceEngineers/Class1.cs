@@ -210,8 +210,9 @@ namespace IngameScript
             //TODO: Optimise quaternion operations, possibly by sorting gyros using their orientaions
             foreach(IMyGyro gyro in gyros)
             {
-                Quaternion rotationOperation = GyroMovementFromLocalRotation(targetRotation, gyro);
-                RollPitchYaw rpy = QuaternionToRollPitchYaw(rotationOperation);
+                //Quaternion rotationOperation = GyroMovementFromLocalRotation(targetRotation, gyro);
+                //RollPitchYaw rpy = QuaternionToRollPitchYaw(rotationOperation);
+                RollPitchYaw rpy = QuaternionToRollPitchYaw(targetRotation);
                 GyroSetOverrideToRollPitchYaw(gyro, rpy);
             }
 
@@ -224,12 +225,23 @@ namespace IngameScript
             //gridRot^-1 . targetRotation = gridMovement
             Quaternion localTargetRotation = Quaternion.Concatenate(Quaternion.Conjugate(gridSpecifictargetRotation), targetRotation);
 
+            LcdPrintln(QuaternionToRawString(localTargetRotation, "Gyro!") + "spaaaaaaaace", "NavPanel");
             GyroSetOverrideFromGridReferenceFrame(localTargetRotation, specificGyro, allGyros);
+
+
         }
 
-        
-
         #endregion
+
+        public void pointToRotation()
+        {
+            Vector3 destination = RemoteControlGetFirstWaypoint("", true);
+            Quaternion targetRotation = Quaternion.CreateFromForwardUp(Vector3.Forward, Vector3.Up);
+
+            LcdClear("NavPanel");
+            GyroSetOverrideFromWorldReferenceFrame(targetRotation, null, true);
+            GyroRollPitchYawDebugPrint(GetBlock<IMyGyro>("", true), "Gyro!", "NavPanel");
+        }
 
         public void rotationTester()
         {
@@ -245,11 +257,13 @@ namespace IngameScript
        // }
         
 
-        
-
-        
-
-        
+        public void printTimerDelay()
+        {
+            IMyTimerBlock timer = GetBlock<IMyTimerBlock>("", true);
+            float dealy = timer.TriggerDelay;
+            LcdPrintln(dealy.ToString());
+            timer.TriggerDelay = 0.0001f;
+        }
 
         
 

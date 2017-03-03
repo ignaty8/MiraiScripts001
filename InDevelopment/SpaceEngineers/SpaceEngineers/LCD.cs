@@ -249,15 +249,25 @@ namespace IngameScript
         /// <param name="pitch"></param>
         /// <param name="yaw"></param>
         public void QuaternionToRollPitchYaw(Quaternion quaternion, out float roll, out float pitch, out float yaw) {
-            double w = quaternion.W;
-            double x = quaternion.X;
-            double y = quaternion.Y;
-            double z = quaternion.Z;
+            Quaternion normalised = Quaternion.Normalize(quaternion);
+
+            double w = normalised.W;
+            double x = normalised.X;
+            double y = normalised.Y;
+            double z = normalised.Z;
+
+            double th = Math.Acos(w);
+            double sth = Math.Sin(th);
+
+            pitch = (float)(x / sth);
+            yaw = -(float)(y / sth);
+            roll = -(float)(z / sth);
 
             // Yaw/roll seems to be switched...
-            yaw = (float)-Math.Atan2(2 * y * w - 2 * x * z, 1 - 2 * y * y - 2 * z * z);
+            /*
+            yaw = (float)Math.Atan2(2 * y * w - 2 * x * z, 1 - 2 * y * y - 2 * z * z);
             pitch = (float)Math.Atan2(2 * x * w - 2 * y * z, 1 - 2 * x * x - 2 * z * z);
-            roll = (float)-Math.Asin(2 * x * y + 2 * z * w);
+            roll = (float)Math.Asin(2 * x * y + 2 * z * w);*/
             //roll  = Math.Atan2(2*y*w + 2*x*z, 1 - 2*y*y - 2*z*z);
             //pitch = Math.Atan2(2 * x * w + 2 * y * z, 1 - 2 * x * x - 2 * z * z);
             //yaw = Math.Asin(2 * x * y + 2 * z * w);
@@ -336,10 +346,13 @@ namespace IngameScript
             IMyRemoteControl remote = getRemoteControl();
             Vector3 origin = remote.CubeGrid.GridIntegerToWorld(Vector3I.Zero);
             Vector3 forward = remote.CubeGrid.GridIntegerToWorld(Vector3I.Forward);
+            Vector3 up = remote.CubeGrid.GridIntegerToWorld(Vector3I.Up);
             forward = forward - origin;
+            up = up - origin;
             //LcdPrintln(VectorToGPS(forward,"ForwardVector"));
             //Should get ship's rotation in relation to origin... Should.
-            Quaternion shipRotation = Quaternion.CreateFromTwoVectors(Vector3.Forward, forward);
+            //Quaternion shipRotation = Quaternion.CreateFromTwoVectors(Vector3.Forward, forward);
+            Quaternion shipRotation = Quaternion.CreateFromForwardUp(forward, up);
             return shipRotation;
         }
 
@@ -621,10 +634,16 @@ namespace IngameScript
         /// </summary>
         /// <param name="remoteName">Remote's block name.</param>
         /// <returns></returns>
-        public Dictionary<string,Vector3> RemoteControlGetWaypointsGPS(string remoteName)
+        public Dictionary<string,Vector3> RemoteControlGetWaypointsGPS(string remoteName, bool anyRemote = false)
         {
-
-            IMyRemoteControl remote = getRemoteControl(remoteName);
+            IMyRemoteControl remote;
+            if (!anyRemote)
+            {
+                remote = getRemoteControl(remoteName);
+            } else
+            {
+                remote = getRemoteControl("", true);
+            }
 
             List<MyWaypointInfo> waypoints = new List<MyWaypointInfo>();
             remote.GetWaypointInfo(waypoints);
@@ -647,6 +666,14 @@ namespace IngameScript
         public Dictionary<string, Vector3> RemoteControlGetWaypointsGPS()
         {
             return RemoteControlGetWaypointsGPS("DefaultRemote");
+        }
+
+        public Vector3 RemoteControlGetFirstWaypoint(string remoteName, bool anyRemote = false)
+        {
+            IMyRemoteControl remote = getRemoteControl(remoteName, anyRemote);
+            List<MyWaypointInfo> waypoints = new List<MyWaypointInfo>();
+            remote.GetWaypointInfo(waypoints);
+            return waypoints[0].Coords;
         }
 
         /// <summary>
@@ -729,7 +756,7 @@ namespace IngameScript
         /// <param name="gyroOrientation"></param>
         /// <returns></returns>
         public Quaternion GyroMovementFromLocalRotation(Quaternion desiredLocalRotation, Quaternion gyroOrientation) {
-            return Quaternion.Multiply(Quaternion.Conjugate(gyroOrientation), desiredLocalRotation);
+            return Quaternion.Concatenate(Quaternion.Conjugate(gyroOrientation), desiredLocalRotation);
         }
 
         #endregion
